@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taiwan Supermarket Nutrition Challenge - 台灣超市營養大挑戰</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .food-card {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .food-card:hover {
+            transform: translateY(-4px) scale(1.02);
+        }
+
+        .drop-zone-active {
+            border-color: #10B981 !important;
+            background-color: #ECFDF5 !important;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F3F4F6;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-emerald-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-400 text-emerald-900 p-2.5 rounded-2xl shadow-inner text-2xl font-bold">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-extrabold tracking-wide flex items-center gap-2">
+                        Supermarket Nutrition Challenge
+                    </h1>
+                    <p class="text-xs text-emerald-100 font-medium">台灣超市營養大挑戰 • 我的餐盤 (My Plate)</p>
+                </div>
+            </div>
+
+            <!-- Global Controls & Status -->
+            <div class="flex items-center gap-3">
+                <!-- Budget Pill -->
+                <div class="bg-emerald-800/60 backdrop-blur border border-emerald-400/40 px-4 py-2 rounded-2xl flex items-center gap-3">
+                    <i class="fa-solid fa-wallet text-amber-300 text-xl"></i>
+                    <div>
+                        <div class="text-[10px] text-emerald-200 uppercase font-semibold">Budget / 預算</div>
+                        <div class="text-lg font-bold text-amber-300" id="budget-display">NT$ 500</div>
+                    </div>
+                </div>
+
+                <!-- Music / Audio Toggle -->
+                <button id="bgm-toggle" onclick="toggleBGM()" class="bg-emerald-700 hover:bg-emerald-500 text-white p-3 rounded-2xl transition flex items-center gap-2 shadow font-bold text-sm">
+                    <i id="bgm-icon" class="fa-solid fa-volume-xmark"></i>
+                    <span id="bgm-text" class="hidden sm:inline">Music OFF</span>
+                </button>
+
+                <!-- Instructions Button -->
+                <button onclick="openInstructions()" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 p-3 rounded-2xl transition font-bold text-sm shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span class="hidden sm:inline">Guide</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="max-w-7xl mx-auto px-4 py-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+        
+        <!-- Left Side: Supermarket Shelves & Categories (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <!-- Category Selector Navigation -->
+            <div class="bg-white p-2.5 rounded-3xl shadow-sm border border-emerald-100 flex items-center gap-2 overflow-x-auto no-scrollbar" id="category-tabs">
+                <!-- Dynamic categories populated via JS -->
+            </div>
+
+            <!-- Shelf Display Area -->
+            <div class="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-emerald-100 flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="current-category-title" class="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                        <i class="fa-solid fa-store text-emerald-600"></i> Fresh Produce / 生鮮區
+                    </h2>
+                    <span class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold" id="category-count">
+                        0 items
+                    </span>
+                </div>
+
+                <!-- Grid of Food Items -->
+                <div id="food-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3.5 overflow-y-auto max-h-[520px] p-1">
+                    <!-- Food Cards generated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side: Shopping Cart & "My Plate" Real-time Dashboard (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Shopping Basket / Drop Zone -->
+            <div id="cart-drop-zone" 
+                 ondragover="handleDragOver(event)" 
+                 ondragleave="handleDragLeave(event)" 
+                 ondrop="handleDrop(event)"
+                 class="bg-white rounded-3xl p-4 shadow-sm border-2 border-dashed border-emerald-300 transition-all flex flex-col relative min-h-[220px]">
+                
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-basket-shopping text-emerald-600"></i> Your Cart / 購物車
+                        <span id="cart-count-badge" class="bg-amber-400 text-emerald-950 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                    </h3>
+                    <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold transition">
+                        <i class="fa-solid fa-trash-can"></i> Clear All
+                    </button>
+                </div>
+
+                <!-- Cart Items List -->
+                <div id="cart-items-container" class="flex-1 overflow-y-auto max-h-[200px] flex flex-col gap-2 pr-1">
+                    <div id="empty-cart-msg" class="h-32 flex flex-col items-center justify-center text-slate-400 text-center p-4">
+                        <i class="fa-solid fa-hand-pointer text-3xl mb-2 text-emerald-200"></i>
+                        <p class="text-xs">Drag items here or click <span class="font-bold text-emerald-600">+</span> to add to cart!</p>
+                        <p class="text-[11px] text-slate-400">拖曳或點擊「+」新增食物到購物車</p>
+                    </div>
+                </div>
+
+                <!-- Total Spent Footer -->
+                <div class="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-semibold text-slate-500">Total Spent / 總金額:</span>
+                    <span id="total-spent" class="text-xl font-extrabold text-emerald-700">NT$ 0</span>
+                </div>
+            </div>
+
+            <!-- Taiwan "My Plate" (我的餐盤) Real-time Tracker -->
+            <div class="bg-white rounded-3xl p-4 shadow-sm border border-emerald-100 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-chart-pie text-amber-500"></i> Taiwan "My Plate" Tracker / 我的餐盤
+                    </h3>
+                    <span class="text-[11px] bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-bold">6 Major Groups</span>
+                </div>
+
+                <p class="text-[11px] text-slate-500">
+                    Mnemonic 口訣: <i>早晚一杯奶、水果拳頭大、菜比水果多、飯跟蔬菜一樣、豆魚蛋肉一掌心、堅果種子一茶匙</i>
+                </p>
+
+                <!-- 6 Food Groups Grid -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    
+                    <!-- Dairy -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-dairy">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🥛</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Dairy / 乳品類</div>
+                                <div class="text-[10px] text-slate-400">Target: 1-2 Servings</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-dairy">0</span>
+                    </div>
+
+                    <!-- Grains -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-grains">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🌾</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Grains / 全穀雜糧</div>
+                                <div class="text-[10px] text-slate-400">Target: ~1 Bowl</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-grains">0</span>
+                    </div>
+
+                    <!-- Protein -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-protein">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🍗</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Protein / 豆魚蛋肉</div>
+                                <div class="text-[10px] text-slate-400">Target: 1 Palm</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-protein">0</span>
+                    </div>
+
+                    <!-- Vegetables -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-vegetables">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🥦</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Veggies / 蔬菜類</div>
+                                <div class="text-[10px] text-slate-400">Target: > Fruits</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-vegetables">0</span>
+                    </div>
+
+                    <!-- Fruits -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-fruits">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🍎</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Fruits / 水果類</div>
+                                <div class="text-[10px] text-slate-400">Target: 1 Fist</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-fruits">0</span>
+                    </div>
+
+                    <!-- Nuts & Seeds -->
+                    <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between" id="group-nuts">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-base">🥜</span>
+                            <div>
+                                <div class="font-bold text-slate-700">Nuts / 堅果種子</div>
+                                <div class="text-[10px] text-slate-400">Target: 1 Tsp</div>
+                            </div>
+                        </div>
+                        <span class="font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-xs" id="cnt-nuts">0</span>
+                    </div>
+
+                </div>
+
+                <!-- Unhealthy Items Counter Bar -->
+                <div class="p-2 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2 text-rose-700 font-semibold">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Sweets & Junk Food / 零食飲料</span>
+                    </div>
+                    <span id="cnt-junk" class="font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">0</span>
+                </div>
+            </div>
+
+            <!-- Checkout Action Button -->
+            <button onclick="checkout()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-extrabold text-lg shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-cash-register"></i>
+                <span>Checkout & Check Health Score / 結帳與健康評分</span>
+            </button>
+        </section>
+    </main>
+
+    <!-- Checkout Modal -->
+    <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] overflow-y-auto">
+            
+            <div class="text-center mb-4">
+                <div id="score-badge" class="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 text-3xl font-extrabold flex items-center justify-center mx-auto mb-2 border-4 border-emerald-500 shadow-md">
+                    95
+                </div>
+                <h2 id="score-title" class="text-2xl font-black text-slate-800">Excellent Meal Choice!</h2>
+                <p id="score-subtitle" class="text-xs text-slate-500 font-medium mt-0.5">營養均衡評分報告</p>
+            </div>
+
+            <!-- Mnemonic Review checklist -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 space-y-2 text-xs" id="mnemonic-feedback">
+                <!-- Feedback items generated dynamically -->
+            </div>
+
+            <!-- Budget & Purchase Summary -->
+            <div class="flex justify-between items-center text-xs text-slate-600 font-semibold bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-4">
+                <div>Total Budget Spent: <span class="text-emerald-700 font-bold" id="modal-spent">NT$ 0</span> / NT$ 500</div>
+                <div>Items: <span class="text-emerald-700 font-bold" id="modal-item-count">0</span></div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex gap-3">
+                <button onclick="closeCheckout()" class="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition text-sm">
+                    Keep Shopping / 繼續購物
+                </button>
+                <button onclick="resetGame()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow transition text-sm">
+                    Play Again / 再試一次
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instruction Guide Modal -->
+    <div id="guide-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-xl font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-emerald-600"></i> How to Play / 遊戲指南
+            </h3>
+            
+            <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
+                <p class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 text-emerald-900 font-semibold">
+                    🎯 Goal: Build a balanced, healthy meal with a NT$ 500 budget based on Taiwan's official "My Plate" (我的餐盤) guidelines!
+                </p>
+                <p><b>6 Major Food Groups / 六大類食物:</b></p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><b>🥛 Dairy / 乳品類:</b> Milk, Yogurt (1-2 cups a day)</li>
+                    <li><b>🌾 Grains / 全穀雜糧類:</b> Brown rice, Sweet potato, Oats</li>
+                    <li><b>🍗 Protein / 豆魚蛋肉類:</b> Tofu, Fish, Eggs, Chicken</li>
+                    <li><b>🥦 Veggies / 蔬菜類:</b> Spinach, Broccoli, Carrots</li>
+                    <li><b>🍎 Fruits / 水果類:</b> Apples, Bananas, Guava</li>
+                    <li><b>🥜 Nuts & Seeds / 堅果種子類:</b> Almonds, Walnuts, Sesame</li>
+                </ul>
+                <p class="text-rose-600 font-semibold">⚠️ Watch out for sugary sodas, boba tea, and chocolates! They add high calories without essential nutrition.</p>
+            </div>
+
+            <button onclick="closeInstructions()" class="mt-5 w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition text-sm">
+                Got it! Start Shopping / 了解，開始購物！
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        /* ---------------------------------------------------
+           DATA STRUCTURES & DATABASE
+        --------------------------------------------------- */
+        const FOOD_DATABASE = [
+            // --- GRAINS 全穀雜糧類 ---
+            { id: 'g1', nameEn: 'Brown Rice', nameZh: '糙米飯', category: 'grains', price: 35, emoji: '🍚', healthy: true, descEn: 'Rich in vitamin B & fiber', descZh: '富含膳食纖維與維生素B群' },
+            { id: 'g2', nameEn: 'Sweet Potato', nameZh: '蒸地瓜', category: 'grains', price: 30, emoji: '🍠', healthy: true, descEn: 'Unrefined complex carb', descZh: '優質未精製全穀雜糧' },
+            { id: 'g3', nameEn: 'Oatmeal', nameZh: '燕麥片', category: 'grains', price: 40, emoji: '🥣', healthy: true, descEn: 'High soluble fiber', descZh: '含有豐富水溶性纖維' },
+            { id: 'g4', nameEn: 'White Bread', nameZh: '白吐司', category: 'grains', price: 25, emoji: '🍞', healthy: false, descEn: 'Refined starch', descZh: '精製澱粉，營養較少' },
+            
+            // --- VEGETABLES 蔬菜類 ---
+            { id: 'v1', nameEn: 'Spinach', nameZh: '菠菜', category: 'vegetables', price: 35, emoji: '🥬', healthy: true, descEn: 'High iron & folate', descZh: '深綠色蔬菜，含豐富鐵質' },
+            { id: 'v2', nameEn: 'Broccoli', nameZh: '青花菜', category: 'vegetables', price: 40, emoji: '🥦', healthy: true, descEn: 'Packed with sulforaphane', descZh: '十字花科蔬菜，富含抗氧化物' },
+            { id: 'v3', nameEn: 'Carrot', nameZh: '胡蘿蔔', category: 'vegetables', price: 25, emoji: '🥕', healthy: true, descEn: 'Rich in Beta-Carotene', descZh: '含有豐富β-胡蘿蔔素' },
+
+            // --- FRUITS 水果類 ---
+            { id: 'f1', nameEn: 'Taiwan Guava', nameZh: '台灣芭樂', category: 'fruits', price: 30, emoji: '🍏', healthy: true, descEn: 'Extremely high Vitamin C', descZh: '維生素C之王，低GI水果' },
+            { id: 'f2', nameEn: 'Apple', nameZh: '蘋果', category: 'fruits', price: 35, emoji: '🍎', healthy: true, descEn: 'Fiber & polyphenols', descZh: '含有豐富膳食纖維與果膠' },
+            { id: 'f3', nameEn: 'Banana', nameZh: '香蕉', category: 'fruits', price: 20, emoji: '🍌', healthy: true, descEn: 'Potassium and energy', descZh: '富含鉀離子與優質能量' },
+
+            // --- PROTEIN 豆魚蛋肉類 ---
+            { id: 'p1', nameEn: 'Fresh Tofu', nameZh: '傳統豆腐', category: 'protein', price: 25, emoji: '🧊', healthy: true, descEn: 'Plant-based high protein', descZh: '優質植物性蛋白質與鈣質' },
+            { id: 'p2', nameEn: 'Steamed Egg', nameZh: '蒸蛋', category: 'protein', price: 20, emoji: '🥚', healthy: true, descEn: 'Complete protein source', descZh: '完整胺基酸，容易吸收' },
+            { id: 'p3', nameEn: 'Grilled Salmon', nameZh: '鮭魚排', category: 'protein', price: 90, emoji: '🐟', healthy: true, descEn: 'Rich in Omega-3 fatty acids', descZh: '富含Omega-3優質油脂' },
+            { id: 'p4', nameEn: 'Chicken Breast', nameZh: '舒肥雞胸肉', category: 'protein', price: 65, emoji: '🍗', healthy: true, descEn: 'Lean protein', descZh: '低脂高蛋白質' },
+
+            // --- DAIRY 乳品類 ---
+            { id: 'd1', nameEn: 'Fresh Milk', nameZh: '鮮乳', category: 'dairy', price: 45, emoji: '🥛', healthy: true, descEn: 'Essential calcium & vitamin D', descZh: '補足鈣質與蛋白質最佳來源' },
+            { id: 'd2', nameEn: 'Plain Yogurt', nameZh: '無糖優格', category: 'dairy', price: 40, emoji: '🍦', healthy: true, descEn: 'Probiotics for gut health', descZh: '含益生菌，維持腸道健康' },
+            { id: 'd3', nameEn: 'Cheese Slice', nameZh: '起司片', category: 'dairy', price: 35, emoji: '🧀', healthy: true, descEn: 'Concentrated calcium', descZh: '濃縮鈣質與香濃滋味' },
+
+            // --- NUTS & SEEDS 堅果種子類 ---
+            { id: 'n1', nameEn: 'Mixed Nuts', nameZh: '綜合堅果', category: 'nuts', price: 50, emoji: '🥜', healthy: true, descEn: 'Healthy unsaturated fats', descZh: '補充優質好油與維生素E' },
+            { id: 'n2', nameEn: 'Black Sesame', nameZh: '黑芝麻粉', category: 'nuts', price: 45, emoji: '🌰', healthy: true, descEn: 'High calcium and antioxidants', descZh: '高鈣與高抗氧化物質' },
+
+            // --- SWEETS & CHOCOLATE 巧克力與甜點 ---
+            { id: 's1', nameEn: 'Dark Chocolate 85%', nameZh: '85%黑巧克力', category: 'sweets', price: 60, emoji: '🍫', healthy: true, descEn: 'Antioxidants & polyphenols', descZh: '適量食用有益心血管' },
+            { id: 's2', nameEn: 'Milk Chocolate Bar', nameZh: '牛奶巧克力條', category: 'sweets', price: 35, emoji: '🍫', healthy: false, descEn: 'High added sugar & saturated fat', descZh: '添加糖份高，易引發肥胖' },
+            { id: 's3', nameEn: 'Cream Donut', nameZh: '甜甜圈', category: 'sweets', price: 40, emoji: '🍩', healthy: false, descEn: 'Trans fats and refined sugar', descZh: '高熱量低營養的精製點心' },
+
+            // --- DRINKS 飲料類 ---
+            { id: 'dr1', nameEn: 'Unsweetened Tea', nameZh: '無糖綠茶', category: 'drinks', price: 30, emoji: '🍵', healthy: true, descEn: 'Zero sugar, rich catechins', descZh: '無糖零熱量，含豐富兒茶素' },
+            { id: 'dr2', nameEn: 'Boba Milk Tea', nameZh: '珍珠奶茶', category: 'drinks', price: 65, emoji: '🧋', healthy: false, descEn: 'High fructose syrup & tapioca starch', descZh: '高糖高熱量，缺少微量營養素' },
+            { id: 'dr3', nameEn: 'Sugary Soda', nameZh: '彈珠汽水/可樂', category: 'drinks', price: 30, emoji: '🥤', healthy: false, descEn: 'Empty calories and high sugar', descZh: '空熱量飲料，容易引發蛀牙' }
+        ];
+
+        const CATEGORIES = [
+            { id: 'all', nameEn: 'All Items', nameZh: '全部商品', icon: 'fa-border-all' },
+            { id: 'grains', nameEn: 'Grains', nameZh: '全穀雜糧', icon: 'fa-wheat-awn' },
+            { id: 'vegetables', nameEn: 'Veggies', nameZh: '蔬菜類', icon: 'fa-carrot' },
+            { id: 'fruits', nameEn: 'Fruits', nameZh: '水果類', icon: 'fa-apple-whole' },
+            { id: 'protein', nameEn: 'Protein', nameZh: '豆魚蛋肉', icon: 'fa-drumstick-bite' },
+            { id: 'dairy', nameEn: 'Dairy', nameZh: '乳品類', icon: 'fa-cow' },
+            { id: 'nuts', nameEn: 'Nuts', nameZh: '堅果種子', icon: 'fa-seedling' },
+            { id: 'sweets', nameEn: 'Sweets', nameZh: '巧克力點心', icon: 'fa-cookie-bite' },
+            { id: 'drinks', nameEn: 'Drinks', nameZh: '飲料區', icon: 'fa-glass-water' }
+        ];
+
+        /* ---------------------------------------------------
+           GAME STATE
+        --------------------------------------------------- */
+        let state = {
+            budget: 500,
+            cart: [],
+            activeCategory: 'all'
+        };
+
+        /* ---------------------------------------------------
+           WEB AUDIO API SYNTHESIZER (No external audio)
+        --------------------------------------------------- */
+        let audioCtx = null;
+        let isMuted = true;
+        let bgmInterval = null;
+        let bgmStep = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'add') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.15); // G5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'remove') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'warning') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.setValueAtTime(140, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'checkout') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
+                    notes.forEach((freq, idx) => {
+                        const subOsc = audioCtx.createOscillator();
+                        const subGain = audioCtx.createGain();
+                        subOsc.type = 'sine';
+                        subOsc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                        subGain.gain.setValueAtTime(0.15, now + idx * 0.1);
+                        subGain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.3);
+                        subOsc.connect(subGain);
+                        subGain.connect(audioCtx.destination);
+                        subOsc.start(now + idx * 0.1);
+                        subOsc.stop(now + idx * 0.1 + 0.3);
+                    });
+                }
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        // Upbeat background music loop synthesizer
+        function toggleBGM() {
+            initAudio();
+            isMuted = !isMuted;
+            const btnText = document.getElementById('bgm-text');
+            const btnIcon = document.getElementById('bgm-icon');
+
+            if (!isMuted) {
+                btnText.textContent = "Music ON";
+                btnIcon.className = "fa-solid fa-volume-high text-amber-300";
+                startBGM();
+            } else {
+                btnText.textContent = "Music OFF";
+                btnIcon.className = "fa-solid fa-volume-xmark";
+                stopBGM();
+            }
+        }
+
+        function startBGM() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            
+            // Lively melody sequence (frequencies in Hz)
+            const melody = [
+                261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
+                293.66, 349.23, 440.00, 523.25, 440.00, 349.23,
+                329.63, 392.00, 493.88, 587.33, 493.88, 392.00,
+                392.00, 440.00, 493.88, 523.25, 523.25, 0
+            ];
+
+            bgmStep = 0;
+            bgmInterval = setInterval(() => {
+                if (isMuted || !audioCtx) return;
+                const freq = melody[bgmStep % melody.length];
+                bgmStep++;
+
+                if (freq > 0) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.18);
+                }
+            }, 200);
+        }
+
+        function stopBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        /* ---------------------------------------------------
+           UI RENDER FUNCTIONS
+        --------------------------------------------------- */
+        function initUI() {
+            renderCategoryTabs();
+            renderFoodGrid();
+            updateCartDisplay();
+        }
+
+        function renderCategoryTabs() {
+            const container = document.getElementById('category-tabs');
+            container.innerHTML = CATEGORIES.map(cat => `
+                <button onclick="selectCategory('${cat.id}')" 
+                        class="px-3.5 py-2 rounded-2xl flex items-center gap-2 whitespace-nowrap text-xs font-bold transition ${
+                            state.activeCategory === cat.id 
+                            ? 'bg-emerald-600 text-white shadow-md' 
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.nameEn} ${cat.nameZh}</span>
+                </button>
+            `).join('');
+        }
+
+        function selectCategory(catId) {
+            state.activeCategory = catId;
+            renderCategoryTabs();
+            renderFoodGrid();
+            
+            const catObj = CATEGORIES.find(c => c.id === catId);
+            document.getElementById('current-category-title').innerHTML = `
+                <i class="fa-solid ${catObj.icon} text-emerald-600"></i> ${catObj.nameEn} / ${catObj.nameZh}
+            `;
+        }
+
+        function renderFoodGrid() {
+            const grid = document.getElementById('food-grid');
+            const items = state.activeCategory === 'all' 
+                ? FOOD_DATABASE 
+                : FOOD_DATABASE.filter(i => i.category === state.activeCategory);
+
+            document.getElementById('category-count').textContent = `${items.length} items`;
+
+            grid.innerHTML = items.map(item => `
+                <div class="food-card bg-slate-50 border border-slate-200 hover:border-emerald-400 p-3 rounded-2xl flex flex-col justify-between cursor-grab relative"
+                     draggable="true"
+                     ondragstart="handleDragStart(event, '${item.id}')"
+                     onclick="addItemToCart('${item.id}')">
+                    
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-3xl">${item.emoji}</span>
+                            <span class="text-xs font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                                NT$ ${item.price}
+                            </span>
+                        </div>
+                        <h4 class="font-bold text-xs text-slate-800 leading-tight">${item.nameEn}</h4>
+                        <div class="text-[11px] font-semibold text-emerald-800 mb-1">${item.nameZh}</div>
+                        <p class="text-[10px] text-slate-500 line-clamp-2">${item.descZh}</p>
+                    </div>
+
+                    <button onclick="event.stopPropagation(); addItemToCart('${item.id}')" 
+                            class="mt-2.5 w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Add / 新增
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        /* ---------------------------------------------------
+           CART ACTIONS & INTERACTIONS
+        --------------------------------------------------- */
+        function addItemToCart(itemId) {
+            const food = FOOD_DATABASE.find(f => f.id === itemId);
+            if (!food) return;
+
+            const currentTotal = getCartTotal();
+            if (currentTotal + food.price > state.budget) {
+                playSound('warning');
+                alert(`⚠️ Budget Warning! / 預算不足！\n\nAdding ${food.nameEn} (${food.nameZh}) exceeds your NT$ 500 budget!`);
+                return;
+            }
+
+            state.cart.push(food);
+            playSound('add');
+            updateCartDisplay();
+        }
+
+        function removeFromCart(index) {
+            state.cart.splice(index, 1);
+            playSound('remove');
+            updateCartDisplay();
+        }
+
+        function clearCart() {
+            if (state.cart.length === 0) return;
+            state.cart = [];
+            playSound('remove');
+            updateCartDisplay();
+        }
+
+        function getCartTotal() {
+            return state.cart.reduce((sum, item) => sum + item.price, 0);
+        }
+
+        function updateCartDisplay() {
+            const container = document.getElementById('cart-items-container');
+            const totalSpentEl = document.getElementById('total-spent');
+            const countBadge = document.getElementById('cart-count-badge');
+            
+            const totalSpent = getCartTotal();
+            totalSpentEl.textContent = `NT$ ${totalSpent}`;
+            countBadge.textContent = state.cart.length;
+
+            if (state.cart.length === 0) {
+                container.innerHTML = `
+                    <div id="empty-cart-msg" class="h-32 flex flex-col items-center justify-center text-slate-400 text-center p-4">
+                        <i class="fa-solid fa-hand-pointer text-3xl mb-2 text-emerald-200"></i>
+                        <p class="text-xs">Drag items here or click <span class="font-bold text-emerald-600">+</span> to add!</p>
+                        <p class="text-[11px] text-slate-400">拖曳或點擊「+」新增食物到購物車</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = state.cart.map((item, idx) => `
+                    <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-rose-200 transition">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">${item.emoji}</span>
+                            <div>
+                                <div class="font-bold text-xs text-slate-800">${item.nameEn} ${item.nameZh}</div>
+                                <div class="text-[10px] text-emerald-700 font-semibold">NT$ ${item.price}</div>
+                            </div>
+                        </div>
+                        <button onclick="removeFromCart(${idx})" class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg transition">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            updateMyPlateTracker();
+        }
+
+        function updateMyPlateTracker() {
+            const counts = {
+                dairy: 0,
+                grains: 0,
+                protein: 0,
+                vegetables: 0,
+                fruits: 0,
+                nuts: 0,
+                junk: 0
+            };
+
+            state.cart.forEach(item => {
+                if (counts.hasOwnProperty(item.category)) {
+                    counts[item.category]++;
+                }
+                if (!item.healthy || item.category === 'sweets' || item.category === 'drinks') {
+                    if (item.category === 'sweets' || item.category === 'drinks' || !item.healthy) {
+                        counts.junk++;
+                    }
+                }
+            });
+
+            // Update DOM counters
+            for (let grp in counts) {
+                const el = document.getElementById(`cnt-${grp}`);
+                if (el) el.textContent = counts[grp];
+
+                const card = document.getElementById(`group-${grp}`);
+                if (card) {
+                    if (counts[grp] > 0) {
+                        card.classList.add('bg-emerald-50', 'border-emerald-300');
+                        card.classList.remove('bg-slate-50', 'border-slate-100');
+                    } else {
+                        card.classList.remove('bg-emerald-50', 'border-emerald-300');
+                        card.classList.add('bg-slate-50', 'border-slate-100');
+                    }
+                }
+            }
+        }
+
+        /* ---------------------------------------------------
+           DRAG AND DROP HANDLERS
+        --------------------------------------------------- */
+        function handleDragStart(e, itemId) {
+            e.dataTransfer.setData('text/plain', itemId);
+            e.dataTransfer.effectAllowed = 'copy';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            const dropZone = document.getElementById('cart-drop-zone');
+            dropZone.classList.add('drop-zone-active');
+        }
+
+        function handleDragLeave(e) {
+            const dropZone = document.getElementById('cart-drop-zone');
+            dropZone.classList.remove('drop-zone-active');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropZone = document.getElementById('cart-drop-zone');
+            dropZone.classList.remove('drop-zone-active');
+
+            const itemId = e.dataTransfer.getData('text/plain');
+            if (itemId) {
+                addItemToCart(itemId);
+            }
+        }
+
+        /* ---------------------------------------------------
+           CHECKOUT & FEEDBACK SCORING ALGORITHM
+        --------------------------------------------------- */
+        function checkout() {
+            if (state.cart.length === 0) {
+                playSound('warning');
+                alert("🛒 Your cart is empty! Add some healthy foods before checking out.\n購物車是空的，請先挑選食物！");
+                return;
+            }
+
+            playSound('checkout');
+
+            let score = 100;
+            const catCounts = {
+                dairy: 0, grains: 0, protein: 0, vegetables: 0, fruits: 0, nuts: 0, sweets: 0, drinks: 0
+            };
+            let unhealthyCount = 0;
+
+            state.cart.forEach(item => {
+                catCounts[item.category] = (catCounts[item.category] || 0) + 1;
+                if (!item.healthy) unhealthyCount++;
+            });
+
+            const feedbackList = [];
+
+            // 1. Dairy Check (早晚一杯奶)
+            if (catCounts.dairy >= 1) {
+                feedbackList.push({ ok: true, text: '🥛 Dairy Included / 包含乳品類：Satisfies calcium requirement! (補足鈣質需求)' });
+            } else {
+                score -= 15;
+                feedbackList.push({ ok: false, text: '🥛 Missing Dairy / 缺少乳品類：Remember "早晚一杯奶" for strong bones!' });
+            }
+
+            // 2. Veggies vs Fruits (菜比水果多一點, 水果拳頭大)
+            if (catCounts.vegetables >= 1) {
+                feedbackList.push({ ok: true, text: '🥦 Vegetables Added / 包含蔬菜類：Great dietary fiber source!' });
+            } else {
+                score -= 15;
+                feedbackList.push({ ok: false, text: '🥦 Missing Veggies / 缺少蔬菜類：Aim for "菜比水果多一點"!' });
+            }
+
+            if (catCounts.fruits >= 1) {
+                feedbackList.push({ ok: true, text: '🍎 Fruits Included / 包含水果類：Provides rich natural Vitamin C!' });
+            } else {
+                score -= 10;
+                feedbackList.push({ ok: false, text: '🍎 Missing Fruits / 缺少水果類：Add 1 serving of fruit ("水果拳頭大")!' });
+            }
+
+            // 3. Grains & Protein (飯跟蔬菜一樣多, 豆魚蛋肉一掌心)
+            if (catCounts.grains >= 1) {
+                feedbackList.push({ ok: true, text: '🌾 Whole Grains Included / 包含全穀雜糧類：Energy and unrefined carbs!' });
+            } else {
+                score -= 15;
+                feedbackList.push({ ok: false, text: '🌾 Missing Grains / 缺少全穀雜糧類：Provide steady energy for study!' });
+            }
+
+            if (catCounts.protein >= 1) {
+                feedbackList.push({ ok: true, text: '🍗 Protein Included / 包含豆魚蛋肉類：Supports muscle growth!' });
+            } else {
+                score -= 15;
+                feedbackList.push({ ok: false, text: '🍗 Missing Protein / 缺少豆魚蛋肉類：Aim for "豆魚蛋肉一掌心"!' });
+            }
+
+            // 4. Nuts & Seeds (堅果種子一茶匙)
+            if (catCounts.nuts >= 1) {
+                feedbackList.push({ ok: true, text: '🥜 Nuts Included / 包含堅果種子類：Good healthy fats ("堅果種子一茶匙")!' });
+            } else {
+                score -= 5;
+                feedbackList.push({ ok: false, text: '🥜 Missing Nuts / 缺少堅果種子：Don\'t forget 1 teaspoon of nuts!' });
+            }
+
+            // 5. Unhealthy Foods & Drinks penalty
+            if (unhealthyCount > 0) {
+                const penalty = unhealthyCount * 10;
+                score -= penalty;
+                feedbackList.push({ ok: false, text: `⚠️ Sugar/Junk Food Warning (${unhealthyCount} items) / 含有高糖飲料或零食：Deducted ${penalty} pts!` });
+            }
+
+            // Final score clamp
+            score = Math.max(10, Math.min(100, score));
+
+            // Render Modal Details
+            document.getElementById('score-badge').textContent = score;
+            document.getElementById('modal-spent').textContent = `NT$ ${getCartTotal()}`;
+            document.getElementById('modal-item-count').textContent = state.cart.length;
+
+            const scoreTitle = document.getElementById('score-title');
+            if (score >= 90) {
+                scoreTitle.textContent = "🌟 Nutrition Master! / 營養大師！";
+                scoreTitle.className = "text-2xl font-black text-emerald-600";
+            } else if (score >= 70) {
+                scoreTitle.textContent = "👍 Good Balanced Meal! / 均衡的一餐！";
+                scoreTitle.className = "text-2xl font-black text-amber-600";
+            } else {
+                scoreTitle.textContent = "⚠️ Needs Improvement / 需要改進！";
+                scoreTitle.className = "text-2xl font-black text-rose-600";
+            }
+
+            const feedbackContainer = document.getElementById('mnemonic-feedback');
+            feedbackContainer.innerHTML = feedbackList.map(item => `
+                <div class="flex items-center gap-2 ${item.ok ? 'text-emerald-800' : 'text-rose-700'}">
+                    <i class="fa-solid ${item.ok ? 'fa-circle-check text-emerald-500' : 'fa-circle-xmark text-rose-500'}"></i>
+                    <span>${item.text}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('checkout-modal').classList.remove('hidden');
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        }
+
+        function resetGame() {
+            closeCheckout();
+            state.cart = [];
+            state.activeCategory = 'all';
+            initUI();
+        }
+
+        /* ---------------------------------------------------
+           INSTRUCTION MODAL CONTROLS
+        --------------------------------------------------- */
+        function openInstructions() {
+            document.getElementById('guide-modal').classList.remove('hidden');
+        }
+
+        function closeInstructions() {
+            document.getElementById('guide-modal').classList.add('hidden');
+        }
+
+        /* ---------------------------------------------------
+           INITIALIZATION
+        --------------------------------------------------- */
+        window.onload = function() {
+            initUI();
+        };
+    </script>
+</body>
+</html>
